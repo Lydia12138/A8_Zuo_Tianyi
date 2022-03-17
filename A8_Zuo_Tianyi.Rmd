@@ -1,0 +1,120 @@
+---
+title: "A8_Zuo_Tianyi"
+author: "Tianyi Zuo"
+date: "2022/3/15"
+output: html_document
+---
+
+
+#### GitHub username: Lydia12138
+#### Date: 2022-01-26 Repo:https://github.com/Lydia12138/A8_Zuo_Tianyi
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+The invasion of non-native plant species poses a serious threat to native plant communities. Alliaria Petiolata, commonly known as garlic mustard, is one of the oldest spices in Europe. Garlic mustard was introduced to North America by European settlers in the 1800s for culinary and medicinal purposes. Because of its lack of natural enemies in North America and its ability to self-fertilize it has now spread rapidly in the eastern United States and neighboring Canada and is considered an invasive invader. Some invasive non-native plants, often referred to as exotic plants or weeds, can have deleterious effects on the new ecosystems into which they are introduced, often displacing or even exterminating native species in the invaded areas. To testing whether the presence of garlic mustard changes the plant community, we proposed two related questions:
+1. What effect (if any) does garlic mustard have on the plant community?
+2. What has a stronger effect on plant communities: the presence/absence of garlic mustard (in/out) or sampling population?
+
+
+## Method and Result
+### Set up -- load package
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(ape)
+library(ggtree)
+library(vegan)
+library(dplyr)
+library(reshape2)
+```
+
+
+### Input the Data
+```{r}
+OData<-read.csv("./Data/FloristicSurvey.csv")
+```
+
+### Dealing with Data
+According to the data we have, we only need analyze the abundance of different species in each area with presence or absence of garlic mustard, with the Quadrate as the row names.
+```{r}
+Data <-select(OData, -c(Quadrate:Sillique))
+OData$Population <- as.character(OData$Population)
+rownames(Data) <-OData$Quadrate
+```
+
+### Bray_Curtis Dissimilarity
+Using Bray_Curtis Dissimilarity matrix to compare the quadrates with each other samples based on abundance of each plant species. 
+
+```{r}
+# Create the Bray_Curtis Dissimilarity metric
+Dist<- vegdist(Data,method="bray",binary=F)
+```
+
+### Distance Matrix
+```{r}
+DistMat<-as.matrix(Dist)
+PDat<-melt(DistMat)
+```
+
+```{r}
+# visualization of distance matrix
+ggplot(data = PDat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile()+scale_fill_gradientn(colours=c("white","blue","green","red")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+
+Figure 1, Bray_Curtis Dissimilarity distance matrices for 30 samples. Var1 and Var2 represent quadrates of samples, and colour represent the the differences in species abundance between each pair of sample. 
+
+Figure 1 represents the similarity between each sample. We can determine that the presence or absence of garlic can indeed influence the abundance of plant community.  We can find that distance value is lower for samples with the presence or absence of garlic in the same population. At the same time, the samples have a very low similarity across populations regardless of the presence or absence of garlic. 
+Figure 1 shows garlic mustard will effect on the plant community. We can see this result more clearly in the tree diagram. 
+
+### Tree building 
+According the distance matrix, we can creat a tree, which more similar samples will be grouped together. 
+```{r fig.height=6, fig.width=6, warning=FALSE}
+Tree<-nj(Dist)
+ggtree(Tree,layout="rectangular") %<+% OData + 
+  geom_tiplab(aes(colour=Population)) + 
+  theme(legend.position="right")+
+  geom_label(aes(x=branch, label=Location), fill = "green", size = 2)
+```
+
+Figure 2, The neighbour-joining tree that clusters samples based on the similarity of their species abundance. The labels in branch shows the present or absent of garlic mustard: i is present and o is absent. Colour represent different population.
+
+Based on figure 2, samplings from the same population are clustered together because of higher similarity, except for populations 3 and 14. We can note that samplings from these populations with the same garlic situation (present or absent) are still clustered together.Moreover, this result also demonstrates that the presence of garlic may be an important factor that leads to the decrease of similarity of samples in the same populations.
+
+### NMDS
+Using Non-matric Dimensional Scaling(NMDS) to visualize the cluster of samplings from different population and location. We can find out whether the presence/absence of garlic mustard or sampling population has a stronger effect on plant communities. 
+
+```{r}
+set.seed(12138)
+NMDSdat<-metaMDS(Dist,k=2,trymax = 100)
+```
+
+```{r}
+PDat<-data.frame(NMDS1=NMDSdat$points[,1],
+                 NMDS2=NMDSdat$points[,2],
+                 Quadrate=row.names(Data))
+PDat<-merge(PDat,OData,by="Quadrate",all.x=T,all.y=F)
+```
+
+
+```{r}
+# Plotting  the NMDS result
+ggplot(data = PDat, aes(x=NMDS1,y=NMDS2,colour = Population, shape = Location)) +
+  geom_point()+
+  theme_bw()
+```
+
+Figure 3. Two-dimensional non-metric multidimensional scaling (NMDS) plot showing species in different population and location with or without garlic. Colour represents different sampling population and shape of point means prsent(i) or absent(o) gralic. 
+
+According to figure 3 we can see that the points are more clustered in the same colour than in the same shape. This shows that sampling population has a stronger effect on plant community. In addition, we can also find that within the same population, samples also cluster together depending on the presence or absence of garlic. This also indicates that garlic does affect plant community, which is the same idea as demonstrated by figures 1 and 2. 
+
+## References
+
+Wikimedia Foundation. (2022, January 31). Alliaria petiolata. Wikipedia. Retrieved March 17, 2022, from https://en.wikipedia.org/wiki/Alliaria_petiolata 
+
+Danoff-Burg, D. J. A. (n.d.). Introduced Species Summary Project Garlic Mustard (Alliaria petiolata). Invasion biology introduced species Summary Project - Columbia University. Retrieved March 17, 2022, from http://www.columbia.edu/itc/cerc/danoff-burg/invasion_bio/inv_spp_summ/Alliaria_petiolata.html 
+
